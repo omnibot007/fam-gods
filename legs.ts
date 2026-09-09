@@ -87,12 +87,13 @@ export function buildPool(sessionId: string) {
     "cohere/north-mini-code:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
   ]));
-  add(leg("pollinations", "Pollinations", "https://gen.pollinations.ai/v1", null, ["openai-large"]));
+  // Pollinations now requires a (free) key: https://enter.pollinations.ai/keys
+  add(leg("pollinations", "Pollinations", "https://gen.pollinations.ai/v1", "POLLINATIONS_API_KEY", ["openai/gpt-5.4-nano"]));
   add(leg("tokenrouter", "TokenRouter", "https://www.tokenrouter.com/api/v1", "TOKENROUTER_API_KEY", [
     "z-ai/glm-5.3-free",
   ]));
   add(leg("groq", "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", ["qwen/qwen3.8-27b"], 800));
-  add(leg("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", ["llama-3.3-70b"]));
+  add(leg("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", ["qwen-3.8-27b"], 800));
   add(leg("go", "GoFallback", GO_BASE, "OPENCODE_GO_KEY", ["deepseek-v4-flash", "glm-5.3-flash"]));
   return { models, legs };
 }
