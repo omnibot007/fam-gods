@@ -95,6 +95,13 @@ export function buildPool(sessionId: string) {
   add(leg("groq", "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", ["qwen/qwen3.8-27b"], 800));
   add(leg("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", ["qwen-3.8-27b"], 800));
   add(leg("go", "GoFallback", GO_BASE, "OPENCODE_GO_KEY", ["deepseek-v4-flash", "glm-5.3-flash"]));
+  // Zen free lane rides the SAME Go key (verified: 7 free variants live here).
+  add(leg("zenfree", "ZenFree", "https://opencode.ai/zen/v1", "OPENCODE_GO_KEY", [
+    "nemotron-3.5-lightning-free",
+    "mimo-v2.5-free",
+    "ling-3.0-flash-fin-free",
+    "nemotron-3-ultra-free",
+  ]));
   return { models, legs };
 }
 
@@ -131,7 +138,9 @@ export async function completeWithFailover(
       try {
         const res = await pool.models.completeSimple(model, context, {
           transformHeaders: async (h) =>
-            l.id === "go" ? { ...h, "x-opencode-session": l.session, "User-Agent": "fam-gods/1.0" } : h,
+            l.id === "go" || l.id === "zenfree"
+              ? { ...h, "x-opencode-session": l.session, "User-Agent": "fam-gods/1.0" }
+              : h,
         });
         if (res.stopReason === "error" || res.stopReason === "aborted") {
           throw new Error(`stopReason=${res.stopReason}`);
