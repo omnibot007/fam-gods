@@ -35,6 +35,7 @@ function leg(
   baseUrl: string,
   keyEnv: string | null,
   modelIds: string[],
+  maxTokens = 4096, // free tiers cap output/min — groq on_demand allows 1000 OTPM
 ): { id: string; provider: ReturnType<typeof createProvider>; models: string[] } {
   const provider = createProvider({
     id,
@@ -54,7 +55,7 @@ function leg(
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
         contextWindow: 64000,
-        maxTokens: 4096,
+        maxTokens,
       }),
     ),
     api: openAICompletionsApi(),
@@ -67,10 +68,13 @@ export interface PoolLeg extends ReturnType<typeof leg> {
 }
 
 export function buildPool(sessionId: string) {
-  fileKeyEnv(
-    "OPENCODE_GO_KEY",
-    process.env.FAM_GO_KEY_FILE ?? join(homedir(), ".config", "opencode", ".go-key"),
-  );
+  const kf = (name: string) =>
+    process.env[name.toUpperCase()] ??
+    join(homedir(), ".config", "opencode", `.${name}-key`);
+  fileKeyEnv("OPENCODE_GO_KEY", process.env.FAM_GO_KEY_FILE ?? kf("go"));
+  for (const k of ["GROQ_API_KEY", "CEREBRAS_API_KEY", "TOKENROUTER_API_KEY", "OPENROUTER_API_KEY"]) {
+    fileKeyEnv(k, process.env[`FAM_${k.replace("_API_KEY", "")}_KEY_FILE`] ?? kf(k.toLowerCase().replace("_api_key", "")));
+  }
   const models = createModels();
   const legs: PoolLeg[] = [];
   const add = (l: ReturnType<typeof leg>) => {
@@ -87,7 +91,7 @@ export function buildPool(sessionId: string) {
   add(leg("tokenrouter", "TokenRouter", "https://www.tokenrouter.com/api/v1", "TOKENROUTER_API_KEY", [
     "z-ai/glm-5.3-free",
   ]));
-  add(leg("groq", "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", ["llama-3.3-70b-versatile"]));
+  add(leg("groq", "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", ["qwen/qwen3.8-27b"], 800));
   add(leg("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", ["llama-3.3-70b"]));
   add(leg("go", "GoFallback", GO_BASE, "OPENCODE_GO_KEY", ["deepseek-v4-flash", "glm-5.3-flash"]));
   return { models, legs };
