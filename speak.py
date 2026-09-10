@@ -11,7 +11,7 @@ import sys
 import tempfile
 import winsound
 
-VOICE = os.environ.get("FAM_VOICE", "bm_george")
+VOICE = os.environ.get("FAM_VOICE", "bm_lewis")
 
 
 def clean(text):
