@@ -82,6 +82,11 @@ export function buildPool(sessionId: string) {
     legs.push({ ...l, session: sessionId });
   };
   // Order = cheap-first. Failures fall through with receipts (rotation below).
+  // Kilo anonymous: unauthenticated :free only, 200 req/hr/IP. Base WITHOUT
+  // /chat/completions (impl appends it). Keyless => keyEnv null.
+  add(leg("kilo-anon", "KiloAnon", "https://api.kilo.ai/api/gateway", null, [
+    "nvidia/nemotron-3.5-lightning:free",
+  ]));
   add(leg("openrouter-free", "OpenRouterFree", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", [
     "nvidia/nemotron-3.5-lightning:free",
     "cohere/north-mini-code:free",
@@ -137,10 +142,17 @@ export async function completeWithFailover(
       const context: Context = { messages, tools: [] };
       try {
         const res = await pool.models.completeSimple(model, context, {
-          transformHeaders: async (h) =>
-            l.id === "go" || l.id === "zenfree"
-              ? { ...h, "x-opencode-session": l.session, "User-Agent": "fam-gods/1.0" }
-              : h,
+          transformHeaders: async (h) => {
+            if (l.id === "go" || l.id === "zenfree")
+              return { ...h, "x-opencode-session": l.session, "User-Agent": "fam-gods/1.0" };
+            if (l.id === "kilo-anon")
+              // pi-ai's openai-completions impl throws "No API key" for keyless
+              // clients unless an authorization/cf-aig-authorization header is
+              // present; the OpenAI SDK lets explicit null strip its injected
+              // Bearer, so the wire request stays truly anonymous (:free docs).
+              return { ...h, "cf-aig-authorization": "anonymous", Authorization: null as unknown as string };
+            return h;
+          },
         });
         if (res.stopReason === "error" || res.stopReason === "aborted") {
           throw new Error(`stopReason=${res.stopReason}`);
